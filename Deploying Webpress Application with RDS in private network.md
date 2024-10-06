@@ -2,6 +2,10 @@
 
 This guide outlines the process for deploying a WordPress application on AWS, leveraging Amazon RDS for database management within a secure private network architecture.
 
+![architecture](https://github.com/user-attachments/assets/ec8fdf91-0f13-4306-8f41-34349a3de395)
+
+
+
 ## Architecture Overview
 
 - **VPC**: A Virtual Private Cloud to host your resources.
