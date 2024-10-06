@@ -1,16 +1,16 @@
 # Deploying a WordPress Application with RDS in a Private Network on AWS
 
-This guide provides a comprehensive overview of how to set up a WordPress application on AWS, using Amazon RDS for the database in a secure, private network architecture.
+This guide outlines the process for deploying a WordPress application on AWS, leveraging Amazon RDS for database management within a secure private network architecture.
 
 ## Architecture Overview
 
-- **VPC**: A Virtual Private Cloud for networking.
-- **Subnets**: Public and private subnets for resource segmentation.
-- **Internet Gateway (IGW)**: Allows internet access for the public subnet.
-- **NAT Gateway**: Enables the private subnet to access the internet securely.
+- **VPC**: A Virtual Private Cloud to host your resources.
+- **Subnets**: Segregation into public and private subnets.
+- **Internet Gateway (IGW)**: Provides internet access for public subnets.
+- **NAT Gateway**: Allows private subnets to access the internet securely.
 - **EC2 Instance**: Hosts the WordPress application.
-- **RDS**: Manages the MySQL database securely.
-- **Application Load Balancer (ALB)**: Distributes incoming traffic to the EC2 instances.
+- **RDS**: Manages the MySQL database.
+- **Application Load Balancer (ALB)**: Distributes incoming traffic to EC2 instances.
 
 ---
 
@@ -18,215 +18,203 @@ This guide provides a comprehensive overview of how to set up a WordPress applic
 
 ### Step 1: Create a VPC
 
+![vpc](https://github.com/user-attachments/assets/20e8f374-07b9-4046-b512-740d0522e14e)
+
+
 1. **Access the VPC Dashboard**:
-   - Log in to the AWS Management Console.
-   - Navigate to the **VPC** service.
+   - Log into the AWS Management Console.
+   - Go to the **VPC** service.
 
 2. **Create a VPC**:
-   - Click on "Your VPCs" and then "Create VPC."
+   - Click "Your VPCs" and select "Create VPC."
    - **Name**: `WordPress-VPC`
    - **IPv4 CIDR block**: `171.2.0.0/24`
    - Click "Create."
 
 ### Step 2: Create Subnets
 
-1. **Create 2 Public Subnets**:
-   - Go to "Subnets" and click "Create subnet."
-   - **Name**: `Public-WordPress-Subnet-1` and `Public-WordPress-Subnet-2`
+![subnets](https://github.com/user-attachments/assets/a53b4313-7555-4922-9d78-45484ad05fe0)
+
+
+1. **Create Public Subnets**:
+   - Click on "Subnets" and then "Create subnet."
+   - **Name**: `Public-Subnet-1` and `Public-Subnet-2`
    - **VPC**: Select `WordPress-VPC`
-   - **IPv4 CIDR block**: `171.2.0.64/26` and `171.2.0.0/26`
+   - **IPv4 CIDR block**: `171.2.0.0/26` and `171.2.0.64/26`
    - Click "Create."
 
-2. **Create 4 Private Subnets**:
-   - Repeat the above steps.
-   - **Name**: `App-Private-WordPress-Subnet-1`, `App-Private-WordPress-Subnet-2`, `DB-Private-WordPress-Subnet-1`, and `DB-Private-WordPress-Subnet-2`
-   - **IPv4 CIDR block**: `171.2.0.128/26`, `171.2.0.192/26` (App private subnets) and `171.2.0.208/28`, `171.2.0.224/28` (DB private subnets)
+2. **Create Private Subnets**:
+   - Repeat the above for private subnets.
+   - **Name**: `Private-App-Subnet-1`, `Private-App-Subnet-2`, `Private-DB-Subnet-1`, and `Private-DB-Subnet-2`
+   - **IPv4 CIDR block**: `171.2.0.128/26`, `171.2.0.192/26` (app subnets), and `171.2.0.208/28`, `171.2.0.224/28` (DB subnets)
    - Click "Create."
 
 ### Step 3: Create Route Tables
 
+![Route tables](https://github.com/user-attachments/assets/a74e8600-0f32-41d3-af1c-b4e1aeb4eeb8)
+
 1. **Public Route Table**:
-   - Click on "Route Tables" and select "Create route table."
-   - **Name**: `WordPress-Public-RT`
+   - Click "Route Tables" and "Create route table."
+   - **Name**: `Public-RT`
    - **VPC**: Select `WordPress-VPC`
    - Click "Create."
 
-2. **Private App Route Table**:
-   - Create another route table.
-   - **Name**: `WordPress-App-Private-RT`
-   - Click "Create."
+2. **Private Route Tables**:
+   - Create two additional route tables:
+   - **Names**: `Private-App-RT` and `Private-DB-RT`
+   - Click "Create" for each.
 
-3. **Private DB Route Table**:
-   - Create another route table.
-   - **Name**: `WordPress-DB-Private-RT`
-   - Click "Create."
+### Step 4: Associate Route Tables
 
-### Step 4: Route Table Subnet Associations
+1. **Public Subnets**:
+   - Select `Public-RT`, go to the **Subnet Associations** tab.
+   - Associate with `Public-Subnet-1` and `Public-Subnet-2`.
 
-1. **Associate Public Subnets**:
-   - Select `WordPress-Public-RT`, click on the **Subnet Associations** tab.
-   - Click "Edit subnet associations," select `Public-WordPress-Subnet-1` and `Public-WordPress-Subnet-2`, and save.
-
-2. **Associate App Private Subnets**:
-   - Select `WordPress-App-Private-RT`, click on the **Subnet Associations** tab.
-   - Select `App-Private-WordPress-Subnet-1` and `App-Private-WordPress-Subnet-2` and save.
-
-3. **Associate DB Private Subnets**:
-   - Select `WordPress-DB-Private-RT`, click on the **Subnet Associations** tab.
-   - Select `DB-Private-WordPress-Subnet-1` and `DB-Private-WordPress-Subnet-2` and save.
+2. **Private Subnets**:
+   - Associate `Private-App-RT` with `Private-App-Subnet-1` and `Private-App-Subnet-2`.
+   - Associate `Private-DB-RT` with `Private-DB-Subnet-1` and `Private-DB-Subnet-2`.
 
 ### Step 5: Create an Internet Gateway
 
-1. **Create Internet Gateway**:
+![Internet gateway](https://github.com/user-attachments/assets/525fa6ef-7a13-47c6-98f1-e15aadbb7b09)
+
+
+1. **Create and Attach**:
    - Navigate to "Internet Gateways" and click "Create internet gateway."
    - **Name**: `WordPress-IGW`
-   - Click "Create."
-
-2. **Attach to VPC**:
-   - Select the internet gateway, click "Actions," then "Attach to VPC."
-   - Choose `WordPress-VPC` and click "Attach."
+   - Attach it to `WordPress-VPC`.
 
 ### Step 6: Create a NAT Gateway
 
+![Nat gateways](https://github.com/user-attachments/assets/01bbde12-e722-46b1-9aae-4a4a00add0aa)
+
+
 1. **Allocate Elastic IP**:
-   - Go to the EC2 Dashboard, click "Elastic IPs," and allocate a new address.
+   - Go to the EC2 Dashboard, select "Elastic IPs," and allocate a new address.
 
 2. **Create NAT Gateway**:
-   - Go to "NAT Gateways" and click "Create NAT gateway."
-   - **Name**: `WordPress-NAT-GW`
-   - **Subnet**: Select `Public-WordPress-Subnet-1`
-   - **Elastic IP**: Choose the allocated Elastic IP.
-   - Click "Create NAT gateway."
+   - Click "NAT Gateways," create a new one in `Public-Subnet-1` using the allocated Elastic IP.
 
-### Step 7: Add Routes for IGW and NAT
+### Step 7: Add Routes
 
 1. **Public Route Table**:
-   - Select `WordPress-Public-RT`, go to the **Routes** tab.
-   - Click "Edit routes," then "Add route":
-     - **Destination**: `0.0.0.0/0`
-     - **Target**: Select `WordPress-IGW`
-   - Click "Save routes."
+   - Edit `Public-RT` to route `0.0.0.0/0` to `WordPress-IGW`.
 
-2. **Private App Route Table**:
-   - Select `WordPress-App-Private-RT`, go to the **Routes** tab.
-   - Click "Edit routes," then "Add route":
-     - **Destination**: `0.0.0.0/0`
-     - **Target**: Select `WordPress-NAT-GW`
-   - Click "Save routes."
-
-3. **Private DB Route Table**:
-   - Select `WordPress-DB-Private-RT`, go to the **Routes** tab.
-   - Click "Edit routes," then "Add route":
-     - **Destination**: `0.0.0.0/0`
-     - **Target**: Select `WordPress-NAT-GW`
-   - Click "Save routes."
+2. **Private Route Tables**:
+   - For `Private-App-RT` and `Private-DB-RT`, route `0.0.0.0/0` to `WordPress-NAT-GW`.
 
 ### Step 8: Create a Bastion Host
 
+![Bastion host](https://github.com/user-attachments/assets/2fcd6765-d205-4c53-b4ad-62cb05d7b12f)
+
+
 1. **Launch EC2 Instance**:
-   - Go to the EC2 Dashboard and click "Launch Instance."
-   - **AMI**: Choose an Amazon Linux AMI.
-   - **Instance Type**: Choose `t2.micro` (or as needed).
-   - **Network Settings**: Choose `Public-WordPress-Subnet-1`.
-   - **Storage**: Use default settings.
-   - **Key Pair**: Create or select an existing key pair.
+   - Go to EC2 and click "Launch Instance."
+   - Select an Amazon Linux AMI and instance type `t2.micro`.
+   - Set the network to `Public-Subnet-1`, configure storage, and select a key pair.
    - Click "Launch."
 
-### Step 9: Set Up RDS
+![App ec2 instance](https://github.com/user-attachments/assets/120cf317-6dde-44c5-808e-f61fcfcf732c)
 
-1. **Navigate to RDS Dashboard**:
-   - Click on "Databases" and then "Create database."
 
-2. **Select Database Engine**:
-   - Choose MySQL.
+2. **Create an APP EC2 Instance**:
+   - Go to EC2 and click "Launch Instance."
+   - Select an Amazon Linux AMI and instance type `t2.micro`.
+   - Set the network to `Private-App-Subnet-1`, configure storage, and select a key pair.
+   - Click "Launch."
 
-3. **Choose a Use Case**:
-   - Select "Standard Create."
+### Step 9: Create a Subnet Group for RDS
 
-4. **Configure Database Settings**:
-   - **DB Instance Identifier**: `wordpress-db`
+![subnet group](https://github.com/user-attachments/assets/3ac49e7c-53b7-4629-abab-7ab4d9702be0)
+
+
+1. **Access RDS Dashboard**:
+   - Click on **Subnet groups** under **Network & Security**.
+
+2. **Create Subnet Group**:
+   - Click "Create DB Subnet Group."
+   - **Name**: `webpress-db -subnetgroups`
+   - **Description**: Add a relevant description.
+   - **VPC**: Choose `WordPress-VPC`.
+   - **Add Subnets**: Select the two DB private subnets.
+
+### Step 10: Set Up RDS Instance
+
+![db instance](https://github.com/user-attachments/assets/b144202a-0d46-4dc3-b6d8-4f461b77ff4f)
+
+
+1. **Create Database**:
+   - In RDS, click "Databases" and "Create database."
+
+2. **Select Engine**:
+   - Choose MySQL, then "Standard Create."
+
+3. **Configure DB**:
+   - **DB Identifier**: `wordpress-db`
    - **Master Username**: `admin`
    - **Password**: Create a secure password.
 
-5. **DB Instance Class**:
-   - Choose `db.t4g.micro` (or as needed).
+4. **Instance Class and Connectivity**:
+   - Set instance class (e.g., `db.t4g.micro`).
+   - Choose `WordPress-VPC`, select the subnet group, and ensure "Public Accessibility" is **No**.
+   - create and go to DB security groups change the inbound rule to App-server SG
 
-6. **Storage**:
-   - Use default settings; adjust as needed.
+5. **Review and Create**:
+   - Review your settings and click "Create database."
 
-7. **Connectivity**:
-   - Choose the VPC (`WordPress-VPC`).
-   - **Subnet group**: Use private subnets.
-   - **Public accessibility**: No (for security).
-   - **VPC Security Groups**: Create a new group allowing traffic from the private subnet.
+### Step 11: Launch EC2 Instance for WordPress
 
-8. **Additional Configuration**:
-   - Configure backup and monitoring options as needed.
+1. **Launch Instance**:
+   - Go back to EC2, click "Launch Instance," and select an Amazon Linux AMI.
+   - Set the network to `Private-App-Subnet-1`.
+   - Complete the instance creation process.
 
-9. **Create Database**:
-   - Click "Create database."
+### Step 12: Configure Security Groups
 
-### Step 10: Launch EC2 Instance for WordPress
+1. **For EC2**:
+   - Create a security group allowing HTTP (80) and HTTPS (443) from the ALB.
+   - Allow SSH (22) only from the bastion host's IP.
 
-1. **Launch EC2 Instance**:
-   - Go to the EC2 Dashboard and click "Launch Instance."
-   - **AMI**: Choose an Amazon Linux AMI.
-   - **Instance Type**: Choose `t2.micro` (or as needed).
-   - **Network Settings**: Choose `App-Private-WordPress-Subnet-1`.
-   - **Storage**: Use default settings.
-   - **Key Pair**: Create or select an existing key pair.
-   - Click "Launch."
+2. **For RDS**:
+   - Create a security group allowing MySQL (3306) from the EC2 instance’s security group.
 
-### Step 11: Configure Security Groups
+### Step 13: Install and Configure WordPress
 
-1. **Create Security Group for EC2**:
-   - Allow inbound traffic on port 80 (HTTP) and port 443 (HTTPS) from the ALB.
-   - Allow inbound traffic on port 22 (SSH) from the bastion host's IP.
-
-2. **Create Security Group for RDS**:
-   - Allow inbound traffic on port 3306 (MySQL) from the private EC2 instance's security group.
-
-### Step 12: Install and Configure WordPress
-
-1. **SSH into Your EC2 Instance**:
-   - Use your bastion host to connect to the private EC2 instance:
+1. **SSH into EC2**:
+   - Copy the .pem keyfile from local host to Bastion host
+    ```bash
+    scp -i ./keypair-new.pem  ./keypair-new.pem ubuntu@54.12.84.90:/home/ec2user
+    ```
+     
+   - Connect via SSH through your bastion host:
      ```bash
-     ssh -i /path/to/your-key.pem ec2-user@<private-ec2-public-ip>
+     ssh -i /path/to/your-key.pem ec2-user@<bastion-public-ip>
+     ssh -i /path/to/your-key.pem ec2-user@<private-ec2-ip>
      ```
 
-2. **Install Apache, PHP, and MySQL Extensions**:
+3. **Install Software**:
    ```bash
    sudo yum update -y
    sudo yum install -y httpd php php-mysqlnd
    ```
 
-3. **Start Apache**:
-
-
+4. **Start Apache**:
    ```bash
    sudo systemctl start httpd
    sudo systemctl enable httpd
    ```
 
-4. **Download WordPress**:
+5. **Download and Configure WordPress**:
    ```bash
    wget https://wordpress.org/latest.tar.gz
    tar -xzf latest.tar.gz
    sudo mv wordpress/* /var/www/html/
+   cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+   nano /var/www/html/wp-config.php
    ```
-
-5. **Configure WordPress**:
-   - Copy the sample configuration file:
-     ```bash
-     cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
-     ```
-   - Edit the `wp-config.php` file:
-     ```bash
-     nano /var/www/html/wp-config.php
-     ```
-   - Update the following lines:
+   - Update the database details:
      ```php
-     define('DB_NAME', 'WordPress-DB');
+     define('DB_NAME', 'wordpress-db');
      define('DB_USER', 'admin');
      define('DB_PASSWORD', 'yourpassword');
      define('DB_HOST', 'your-rds-endpoint');
@@ -237,51 +225,55 @@ This guide provides a comprehensive overview of how to set up a WordPress applic
    sudo chown -R apache:apache /var/www/html/*
    ```
 
-7. **Complete WordPress Installation**:
-   - Navigate to `http://<your-ALB-DNS-name>` to complete the WordPress installation through the web interface.
+7. **Official AWS Installation Documents**:
+   - link `http://<your-ALB-DNS-name>](https://aws.amazon.com/tutorials/deploy-wordpress-with-amazon-rds/module-four/` 
 
-### Step 13: Create and Configure an Application Load Balancer
+### Step 14: Create an Application Load Balancer
 
-1. **Navigate to Load Balancers**:
-   - Click on "Load Balancers" and then "Create Load Balancer."
+![LB-Targetgroup](https://github.com/user-attachments/assets/faa54601-bf7b-41da-985b-7611ddf33d69)
 
-2. **Choose Application Load Balancer**:
-   - **Name**: `WordPress-ALB`
-   - **Scheme**: Choose "internet-facing."
-   - **Listeners**: Add a listener on port 80.
-   - **Availability Zones**: Select the public subnets.
 
-3. **Configure Security Settings**:
-   - Skip for HTTP; configure HTTPS later if needed.
+1. **Create Load Balancer**:
+   - Go to "Load Balancers" and select "Create Load Balancer."
+   - Choose **Application Load Balancer**, set a name, and configure it as "internet-facing" with port 80.
 
-4. **Configure Security Groups**:
-   - Create a new security group or select an existing one allowing HTTP traffic.
+2. **Configure Security Settings**:
+   - Set up security groups to allow HTTP traffic.
+  
+     ![LB-Targetgroup](https://github.com/user-attachments/assets/b12ba18b-03be-48ca-8404-997810359ca8)
 
-5. **Configure Target Group**:
-   - **Name**: `WordPress-Target-Group`
-   - **Target Type**: Instance.
-   - **Health checks**: Use HTTP and set the path to `/`.
 
-6. **Register Targets**:
-   - Add the EC2 instance (WordPress) to the target group.
+3. **Configure Target Group**:
+   - Name it `Webpress-TG` and register your EC2 instance.
 
-7. **Review and Create**:
-   - Click "Create" to finalize the load balancer.
+4. **Review and Create**:
+   - Finalize your load balancer setup.
 
-### Step 14: Additional Configurations (Optional)
+5. **Link to the WordPress Website**
+   - link `Wordpress-ALB-2100940295.us-east-1.elb.amazonaws.com`
 
-1. **Set Up HTTPS**:
-   - Consider using AWS Certificate Manager (ACM) to provision an SSL certificate.
-   - Attach the certificate to your ALB for HTTPS traffic.
 
-2. **Enable Backups**:
-   - Set up regular backups for your RDS instance.
+### Step 15: Security Groups
 
-3. **Monitoring and Logging**:
-   - Use Amazon CloudWatch to monitor your EC2 and RDS instances.
-   - Configure logging for Apache to track access and errors.
+1. **App-Webpress-SG Inbound rules**:
+   - HTTP - Webpress-ALB-SG
+   - SSH - Bastion host
 
+2. **Wordpress-DB-SG Inbound rules**:
+   - MYSQL/Aurora - App-Webpress-SG
+
+3. **Webpress-ALB-SG Inbound rules**:
+   - HTTP - 0.0.0.0/0
+
+4. **Bastion-host-SG**:
+   - SSH - 0.0.0.0/0
+     
 ## Conclusion
 
-You've successfully deployed a WordPress application on AWS using RDS in a private network. This architecture provides enhanced security and scalability. With the ability to manage your infrastructure effectively, you can now focus on developing and growing your WordPress site.
+![wordpress-site](https://github.com/user-attachments/assets/e2ffd30c-8f1e-4abc-ba7b-75bfda13f15b)
 
+You have successfully deployed a WordPress application on AWS, utilizing RDS in a secure private network architecture. This setup enhances security and scalability, allowing you to focus on your
+
+![wordpress-db initiation](https://github.com/user-attachments/assets/f583006b-a8bc-4d5b-ac4e-dd6ce8718b79)
+
+ WordPress site’s growth and development.
