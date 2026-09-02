@@ -2,7 +2,6 @@
 
 One VPC. Three tiers. No public entry point anywhere, not one. AWS Client VPN is the only way to reach the application or the database, and the security groups are written so that a successful connection is itself proof the traffic went through the tunnel, not just a coincidence that happened while the tunnel was up.
 
-> Status: deployed. Built entirely through the AWS Management Console, region `ap-south-1`. Real Cost Explorer numbers and proof screenshots go into the marked placeholders below once pulled together.
 
 ## Why this exists
 
